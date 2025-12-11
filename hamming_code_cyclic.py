@@ -40,16 +40,16 @@ def encode_cyclic_hamming(data_bits):
     """
     Encode 4 data bits into 7 bit codeword.
     """
-    # Multiply by x^3 → append 3 zeros
+    # multiply by x^3 append 3 zeros
     extended = data_bits + [0, 0, 0]
 
-    # Compute remainder
+    # remainder
     remainder = poly_mod(extended, G)
 
-    # Padding remainder to length 3
+    # remainder to length 3
     remainder = [0] * (3 - len(remainder)) + remainder
 
-    # Add remainder (xor)
+    # add remainder (xor)
     codeword = [extended[i] ^ remainder[i - 4] if i >= 4 else extended[i]
                 for i in range(7)]
 
@@ -82,7 +82,7 @@ def fix_errors(codeword):
 
     syn = syndrome(codeword)
     
-    # Convert syndrome bits to integer
+    # convert syndrome bits to integer
     s_val = int("".join(map(str, syn)), 2)
 
     if s_val == 0:
