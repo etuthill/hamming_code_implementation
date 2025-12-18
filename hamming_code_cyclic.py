@@ -11,7 +11,7 @@ H = [1, 0, 1, 1, 1]
 
 def get_user_bits():
     while True:
-        raw = input("Enter 4 bits (e.g. 1011): ").strip()
+        raw = input("Enter 4 bits: ").strip()
         if len(raw) == 4 and all(c in "01" for c in raw):
             return [int(b) for b in raw]
         print("Invalid input. Please enter exactly 4 bits.")
@@ -208,8 +208,11 @@ def encode_cyclic_hamming(data_bits):
     return codeword
 
 def show_bit_positions(label, bits):
+    
     degree = len(bits) - 1
+    
     powers = []
+    
     for i in range(len(bits)):
         power = degree - i
         if power == 0:
@@ -227,12 +230,13 @@ def show_bit_positions(label, bits):
 
 def introduce_error_random(codeword):
     pos = random.randint(0, 6)
+    
     codeword[pos] ^= 1
     print(f"Introduced error at bit {pos+1}")
 
 def syndrome(codeword):
     syn = poly_mod(codeword, G)
-    # always pad to 3 bits
+    
     return [0] * (3 - len(syn)) + syn
 
 def build_syndrome_table():
@@ -270,76 +274,118 @@ def fix_errors(codeword):
 
     return codeword
 
-def visualize_cyclic_walkthrough(data_bits):
-    """
-    Walk through encoding and decoding for the cyclic (7,4) Hamming code with
-    clear, math-friendly prints.
-    """
-    print("\n=== Cyclic Hamming (7,4) visual walkthrough ===\n")
-    print(f"User data d(x): {format_bits(data_bits)}  -> {bits_to_poly(data_bits)}")
-    print(f"Generator g(x): {format_bits(G)}  -> {bits_to_poly(G)}")
-    print("g(x) divides every valid codeword polynomial.\n")
+def structured_demo(data_bits):
 
-    # Encoding
-    print("1) Shift data by x^3 (append 3 zeros) before dividing by g(x):")
-    shifted = data_bits + [0, 0, 0]
-    show_bit_positions("Shifted data", shifted)
 
-    print("2) Divide shifted data by g(x) over GF(2) to get the parity remainder:")
-    remainder, encode_steps = long_division_with_steps(shifted, G)
-    print_division_steps(shifted, G, "Polynomial long division steps:", steps=encode_steps, remainder=remainder)
-    parity = pad_left(remainder, len(G) - 1)
-    print(f"Parity bits (highest to lowest power): {format_bits(parity)}\n")
-    plot_division_grid(shifted, encode_steps, "cyclic_division_encode.png", "Encoding division (d(x)*x^3) ÷ g(x)")
+    input()
 
-    print("3) XOR the parity onto the shifted data to get the 7-bit codeword:")
+    print("1) Start with data bits d\n")
+    print("Raw data bits:")
+    print("  d =", format_bits(data_bits))
+    print("  d(x) =", bits_to_poly(data_bits))
+    print()
+
+
+    input()
+    print("2) Multiply by x^3 (make room for parity)\n")
+    extended = data_bits + [0, 0, 0]
+    print("Shifted data:")
+    print("  d(x)·x^3 =", bits_to_poly(extended))
+    print("  bits     =", format_bits(extended))
+    print()
+
+    input()
+    print("3) Divide by generator g(x) to compute parity\n")
+    print("Generator polynomial:")
+    print("  g(x) =", bits_to_poly(G))
+    print()
+
+    remainder = poly_mod(extended, G)
+    remainder = [0] * (3 - len(remainder)) + remainder
+
+    print("Division result:")
+    print("  remainder =", format_bits(remainder))
+    print("  parity p(x) =", bits_to_poly(remainder))
+    print()
+
+
+    input()
+    print("4) Form codeword c(x) = d(x)·x^3 + p(x)\n")
     codeword = encode_cyclic_hamming(data_bits)
-    show_bit_positions("Codeword c(x)", codeword)
 
-    # Optional error introduction
-    choice = input("Flip a bit to see error detection? (enter 1-7, 'r' for random, or press Enter to skip): ").strip().lower()
-    err_pos = None
-    if choice == "r":
-        err_pos = random.randint(0, 6)
-    elif choice.isdigit():
-        idx = int(choice)
-        if 1 <= idx <= 7:
-            err_pos = idx - 1
+    print("Codeword:")
+    print("  bits =", format_bits(codeword))
+    print("  c(x) =", bits_to_poly(codeword))
+    print()
 
-    received = codeword[:]
-    if err_pos is not None:
-        received[err_pos] ^= 1
-        print(f"\nIntroduced a single-bit error at position {err_pos + 1}.")
-    else:
-        print("\nNo error introduced.")
-    show_bit_positions("Received word", received)
+    print("Check validity:")
+    print("  c(x) mod g(x) =", format_bits(syndrome(codeword)))
+    print("  (must be 000 for a valid codeword)\n")
 
-    # Syndrome
-    print("4) Compute the syndrome s(x) = received mod g(x):")
-    syn_remainder, syndrome_steps = long_division_with_steps(received, G)
-    print_division_steps(received, G, "Syndrome division:", steps=syndrome_steps, remainder=syn_remainder)
-    syn = pad_left(syn_remainder, len(G) - 1)
-    plot_division_grid(received, syndrome_steps, "cyclic_division_syndrome.png", "Syndrome division (received) ÷ g(x)")
 
+    input()
+    print("5) Cyclic shift (rotation)\n")
+    rotated = codeword[1:] + [codeword[0]]
+
+    print("Cyclic shift = multiply by x (mod x^7 − 1)")
+    print("  rotated bits =", format_bits(rotated))
+    print("  rotated poly =", bits_to_poly(rotated))
+    print()
+
+    print("Validity after shift:")
+    print("  rotated mod g(x) =", format_bits(syndrome(rotated)))
+    print("  (still valid -> this is why the code is cyclic)\n")
+
+
+    input()
+    print("6) Introduce a single-bit error\n")
+    received = rotated[:]
+    error_pos = random.randint(0, 6)
+    received[error_pos] ^= 1
+
+    print(f"Error introduced at position {error_pos + 1}")
+    print("Received word:")
+    print("  r(x) =", bits_to_poly(received))
+    print("  bits =", format_bits(received))
+    print()
+
+
+    input()
+    print("7) Compute syndrome s(x) = r(x) mod g(x)\n")
+    syn = syndrome(received)
     syn_val = int("".join(map(str, syn)), 2)
-    table = build_syndrome_table()
-    if syn_val == 0:
-        print("Syndrome is 000 → received word lies in the code. No correction needed.\n")
-    else:
-        if syn_val in table:
-            pos = table[syn_val]
-            print(f"Syndrome {format_bits(syn)} corresponds to bit position {pos + 1}.")
-            corrected = received[:]
-            corrected[pos] ^= 1
-            show_bit_positions("Corrected word", corrected)
-        else:
-            print("Syndrome not recognized (likely multiple errors).\n")
 
-    plot_flow(data_bits, parity, codeword, received, syn, "cyclic_hamming_flow.png")
+    print("Syndrome:")
+    print("  s(x) =", bits_to_poly(syn))
+    print("  bits =", format_bits(syn))
+    print("  numeric value =", syn_val)
+    print()
+
+
+    input()
+    print("8) Use syndrome as a lookup key\n")
+    table = build_syndrome_table()
+
+    print("Syndrome table (value -> error position):")
+    for k in sorted(table):
+        print(f"  {k:03b} -> bit {table[k] + 1}")
+    print()
+
+    if syn_val in table:
+        fix_pos = table[syn_val]
+        print(f"Error located at bit {fix_pos + 1}")
+        received[fix_pos] ^= 1
+
+    print("\nCorrected codeword:")
+    print("  bits =", format_bits(received))
+    print("  c(x) =", bits_to_poly(received))
+    print("  mod g(x) =", format_bits(syndrome(received)))
+    print("\nEnd of Demo")
+
 
 def main():
     data_bits = get_user_bits()
-    visualize_cyclic_walkthrough(data_bits)
+    structured_demo(data_bits)
 
 if __name__ == "__main__":
     main()
